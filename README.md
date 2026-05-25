@@ -17,6 +17,7 @@ This repository currently implements Phase 1:
 ```text
 root/
   backend/
+  db-init/
   frontend/
   docker/
   docs/
@@ -83,6 +84,13 @@ Use a local PostgreSQL instance or run Docker Compose:
 cd docker
 docker compose up --build
 ```
+
+Docker Compose now starts services in this order:
+
+1. `postgres`
+2. `db-init` runs `db-init/create_default_tables.sql` and `db-init/insert_default_data.sql`
+3. `backend`
+4. `frontend`
 
 ## Environment Variables
 

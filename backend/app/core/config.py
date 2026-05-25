@@ -19,7 +19,7 @@ class Settings(BaseSettings):
     app_name: str = "AI Job Applier"
     environment: str = "development"
     api_v1_prefix: str = "/api/v1"
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    cors_origins: str = "*"
 
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/ai_job_applier"
     openai_api_key: str = ""
