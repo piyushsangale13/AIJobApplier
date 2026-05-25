@@ -2,7 +2,7 @@
 
 Personal-use AI-powered automatic job application system built as a monorepo with FastAPI, React, PostgreSQL, Playwright, and OpenAI.
 
-This repository currently implements Phase 1:
+This repository now implements a refactored dynamic architecture:
 
 - backend setup
 - frontend setup
@@ -11,6 +11,10 @@ This repository currently implements Phase 1:
 - text extraction for PDF/DOCX
 - OpenAI structured resume parsing
 - dashboard shell and application tracker surface
+- dynamic job discovery across LinkedIn, Google, and Wellfound
+- ATS detection and routing for Greenhouse, Lever, Workday, and LinkedIn Easy Apply
+- AI relevance scoring and auto-queueing pipeline
+- background discovery scheduler
 
 ## Monorepo Structure
 
@@ -31,6 +35,9 @@ root/
 - Local resume storage under `backend/storage`
 - OpenAI integration in `app/services/ai_service.py`
 - Structured JSON logging with `structlog`
+- Discovery layer under `app/discovery`
+- ATS automation layer under `app/automation`
+- Scheduler worker under `app/workers`
 
 Key endpoints:
 
@@ -38,7 +45,15 @@ Key endpoints:
 - `GET /api/v1/dashboard/stats`
 - `GET /api/v1/resumes`
 - `POST /api/v1/resumes/upload`
+- `GET /api/v1/search-preferences`
+- `POST /api/v1/search-preferences`
+- `PATCH /api/v1/search-preferences/{id}`
+- `GET /api/v1/jobs`
+- `POST /api/v1/jobs/discover`
+- `POST /api/v1/jobs/discover/preferences`
+- `POST /api/v1/jobs/{job_id}/score`
 - `GET /api/v1/applications`
+- `POST /api/v1/applications/process-queue`
 
 ## Frontend Highlights
 
@@ -48,6 +63,7 @@ Key endpoints:
 - Resume upload page wired to backend
 - Dashboard stats cards
 - Application tracker view
+- Jobs feed with dynamic discovery, source filters, and ATS visibility
 
 ## Local Setup
 
@@ -100,10 +116,18 @@ Backend: `backend/.env`
 APP_NAME=AI Job Applier
 ENVIRONMENT=development
 API_V1_PREFIX=/api/v1
-CORS_ORIGINS=["http://localhost:5173"]
+CORS_ORIGINS=*
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/ai_job_applier
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1-mini
+REQUEST_TIMEOUT_SECONDS=20
+DISCOVERY_SCHEDULER_ENABLED=true
+DISCOVERY_INTERVAL_MINUTES=30
+AUTO_QUEUE_MIN_SCORE=75
+MAX_JOBS_PER_QUERY=20
+LINKEDIN_SEARCH_LOCATIONS=India,Bangalore,Hyderabad,Remote India
+GOOGLE_SEARCH_DOMAINS=boards.greenhouse.io,jobs.lever.co,workdayjobs.com
+WELLFOUND_SEARCH_LOCATIONS=India,Remote
 LOG_LEVEL=INFO
 ```
 
@@ -131,6 +155,52 @@ VITE_API_BASE_URL=http://localhost:8000/api/v1
 
 If `OPENAI_API_KEY` is not configured, the backend uses a small local fallback parser so the flow still works for development.
 
+## Dynamic Discovery Architecture
+
+Discovery is now split from ATS application handling.
+
+Flow:
+
+1. Discovery sources find jobs dynamically from LinkedIn, Google, and Wellfound
+2. The pipeline deduplicates jobs by source id and apply URL
+3. `utils/ats_detector.py` detects the real ATS from the apply URL
+4. OpenAI scores relevance against the latest or selected resume
+5. High-scoring jobs are auto-queued into the applications table
+6. ATS handlers process queued applications using Playwright
+
+### Discovery Configuration
+
+Discovery is driven by search preferences and lightweight env defaults:
+
+```env
+DISCOVERY_SCHEDULER_ENABLED=true
+DISCOVERY_INTERVAL_MINUTES=30
+AUTO_QUEUE_MIN_SCORE=75
+MAX_JOBS_PER_QUERY=20
+LINKEDIN_SEARCH_LOCATIONS=India,Bangalore,Hyderabad,Remote India
+GOOGLE_SEARCH_DOMAINS=boards.greenhouse.io,jobs.lever.co,workdayjobs.com
+WELLFOUND_SEARCH_LOCATIONS=India,Remote
+```
+
+Notes:
+
+- No companies are hardcoded into discovery configuration.
+- Google discovery uses search strategies like `site:boards.greenhouse.io "backend engineer India"`.
+- LinkedIn and Wellfound discovery generate dynamic search queries from keywords, locations, and experience levels.
+- ATS detection is separate from discovery source selection.
+
+### Search Preferences
+
+Use `search_preferences` to store dynamic job search intent:
+
+- `keywords`
+- `locations`
+- `min_salary_lpa`
+- `preferred_companies`
+- `enabled`
+
+Enabled preferences are processed by the scheduler every 15-30 minutes.
+
 ## Seed Demo Data
 
 ```bash
@@ -138,13 +208,21 @@ cd backend
 python3 scripts/seed_demo.py
 ```
 
-## Phase 2 Preview
+## Automation Notes
 
-Next steps in this architecture:
+ATS application handlers are implemented for:
 
-- job provider abstraction and normalized jobs
-- LinkedIn, Greenhouse, Lever, and Wellfound discovery
-- AI relevance scoring against stored resume data
+- Greenhouse
+- Lever
+- Workday
+- LinkedIn Easy Apply
+
+They use Playwright with:
+
+- persistent browser profiles
+- non-headless browser sessions
+- retry behavior
+- screenshot capture on failure
 
 ## Notes
 

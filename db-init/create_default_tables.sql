@@ -17,8 +17,10 @@ CREATE TABLE IF NOT EXISTS jobs (
     salary_text VARCHAR(255),
     apply_url VARCHAR(2048) NOT NULL,
     ats_type VARCHAR(100) NOT NULL,
+    source VARCHAR(100) NOT NULL DEFAULT 'unknown',
     description TEXT NOT NULL,
     posted_at TIMESTAMPTZ,
+    discovered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     relevance_score DOUBLE PRECISION,
     ai_analysis JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -27,6 +29,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS ix_jobs_ats_type ON jobs (ats_type);
 CREATE INDEX IF NOT EXISTS ix_jobs_company ON jobs (company);
+CREATE INDEX IF NOT EXISTS ix_jobs_source ON jobs (source);
 CREATE INDEX IF NOT EXISTS ix_jobs_title ON jobs (title);
 
 CREATE TABLE IF NOT EXISTS resumes (
@@ -69,3 +72,15 @@ CREATE TABLE IF NOT EXISTS applications (
 );
 
 CREATE INDEX IF NOT EXISTS ix_applications_status ON applications (status);
+
+CREATE TABLE IF NOT EXISTS search_preferences (
+    id UUID PRIMARY KEY,
+    keywords JSONB NOT NULL DEFAULT '[]'::jsonb,
+    locations JSONB NOT NULL DEFAULT '[]'::jsonb,
+    min_salary_lpa DOUBLE PRECISION,
+    preferred_companies JSONB NOT NULL DEFAULT '[]'::jsonb,
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    label VARCHAR(255),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

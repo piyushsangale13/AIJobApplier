@@ -37,6 +37,7 @@ export interface ApplicationRecord {
   id: string;
   created_at: string;
   updated_at: string;
+  job_id: string | null;
   company: string;
   role: string;
   status: string;
@@ -44,4 +45,57 @@ export interface ApplicationRecord {
   resume_version: string | null;
   notes: string | null;
   screenshots: string[];
+}
+
+export interface JobRecord {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  source_id: string | null;
+  company: string;
+  title: string;
+  location: string | null;
+  salary_text: string | null;
+  apply_url: string;
+  ats_type: string;
+  source: string;
+  description: string;
+  posted_at: string | null;
+  discovered_at: string;
+  relevance_score: number | null;
+  ai_analysis: {
+    missing_skills?: string[];
+    reasoning?: string;
+    source?: string;
+  };
+}
+
+export interface JobsQueryParams {
+  company?: string;
+  location?: string;
+  ats_type?: string;
+  source?: string;
+  min_relevance_score?: number;
+}
+
+export interface JobDiscoveryRequest {
+  keywords: string[];
+  locations: string[];
+  experience_levels: string[];
+  sources: Array<"linkedin" | "google" | "wellfound">;
+  resume_id: string | null;
+  limit_per_source: number;
+  remote_only: boolean;
+}
+
+export interface JobDiscoveryResponse {
+  jobs: JobRecord[];
+  source_counts: Record<string, number>;
+  used_resume_id: string | null;
+}
+
+export interface JobScoreResponse {
+  relevance_score: number;
+  missing_skills: string[];
+  reasoning: string;
 }
