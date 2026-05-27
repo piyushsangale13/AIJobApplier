@@ -88,6 +88,7 @@ class AIService:
         )
         return response.output_parsed
 
+    @retry(wait=wait_exponential(min=1, max=8), stop=stop_after_attempt(3), reraise=True)
     async def generate_cover_letter(self, resume_data: dict, job_description: str) -> str:
         if not self.client:
             return "OpenAI API key not configured. Cover letter generation is unavailable."
@@ -108,6 +109,7 @@ class AIService:
         )
         return response.output_parsed.cover_letter
 
+    @retry(wait=wait_exponential(min=1, max=8), stop=stop_after_attempt(3), reraise=True)
     async def answer_application_question(self, resume_data: dict, question: str) -> QuestionAnswerResult:
         if not self.client:
             return QuestionAnswerResult(

@@ -26,6 +26,14 @@ export function JobsFeedPage() {
   const [filterSource, setFilterSource] = useState("");
   const [filterMinScore, setFilterMinScore] = useState("");
 
+  function updateFilter<T>(setter: (v: T) => void) {
+    return (v: T) => { setter(v); setPage(1); };
+  }
+
+  // Pagination
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+
   // Per-job action state
   const [scoringJobId, setScoringJobId] = useState<string | null>(null);
   const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
@@ -33,13 +41,17 @@ export function JobsFeedPage() {
   const [expandedTailorJobId, setExpandedTailorJobId] = useState<string | null>(null);
 
   const { data: resumes } = useResumes();
-  const jobsQuery = useJobs({
-    company: filterCompany || undefined,
-    location: filterLocation || undefined,
-    ats_type: filterAtsType || undefined,
-    source: filterSource || undefined,
-    min_relevance_score: filterMinScore ? Number(filterMinScore) : undefined
-  });
+  const jobsQuery = useJobs(
+    {
+      company: filterCompany || undefined,
+      location: filterLocation || undefined,
+      ats_type: filterAtsType || undefined,
+      source: filterSource || undefined,
+      min_relevance_score: filterMinScore ? Number(filterMinScore) : undefined
+    },
+    page,
+    PAGE_SIZE
+  );
   const discoverMutation = useDiscoverJobs();
   const rescoreMutation = useRescoreJob();
   const tailorMutation = useTailorResume();
@@ -189,7 +201,7 @@ export function JobsFeedPage() {
               <span className="text-sm text-slate">Company</span>
               <input
                 value={filterCompany}
-                onChange={(event) => setFilterCompany(event.target.value)}
+                onChange={(event) => updateFilter(setFilterCompany)(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               />
             </label>
@@ -197,7 +209,7 @@ export function JobsFeedPage() {
               <span className="text-sm text-slate">Discovery Source</span>
               <select
                 value={filterSource}
-                onChange={(event) => setFilterSource(event.target.value)}
+                onChange={(event) => updateFilter(setFilterSource)(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               >
                 <option value="">All</option>
@@ -210,7 +222,7 @@ export function JobsFeedPage() {
               <span className="text-sm text-slate">Location</span>
               <input
                 value={filterLocation}
-                onChange={(event) => setFilterLocation(event.target.value)}
+                onChange={(event) => updateFilter(setFilterLocation)(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               />
             </label>
@@ -218,7 +230,7 @@ export function JobsFeedPage() {
               <span className="text-sm text-slate">Minimum ATS Score</span>
               <input
                 value={filterMinScore}
-                onChange={(event) => setFilterMinScore(event.target.value)}
+                onChange={(event) => updateFilter(setFilterMinScore)(event.target.value)}
                 type="number"
                 min="0"
                 max="100"
@@ -229,7 +241,7 @@ export function JobsFeedPage() {
               <span className="text-sm text-slate">ATS Type</span>
               <select
                 value={filterAtsType}
-                onChange={(event) => setFilterAtsType(event.target.value)}
+                onChange={(event) => updateFilter(setFilterAtsType)(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               >
                 <option value="">All</option>
@@ -276,11 +288,13 @@ export function JobsFeedPage() {
         <div className="flex items-center justify-between">
           <p className="text-sm uppercase tracking-[0.3em] text-slate">Jobs Feed</p>
           {jobsQuery.data ? (
-            <span className="text-sm text-slate">{jobsQuery.data.length} jobs</span>
+            <span className="text-sm text-slate">
+              {jobsQuery.data.total} jobs · page {jobsQuery.data.page} of {jobsQuery.data.total_pages}
+            </span>
           ) : null}
         </div>
         <div className="mt-6 space-y-4">
-          {jobsQuery.data?.map((job) => (
+          {jobsQuery.data?.items.map((job) => (
             <div key={job.id} className="rounded-3xl bg-white/75 p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
@@ -408,12 +422,61 @@ export function JobsFeedPage() {
             </div>
           ))}
           {jobsQuery.isLoading ? <p className="text-sm text-slate">Loading jobs...</p> : null}
-          {!jobsQuery.isLoading && !jobsQuery.isError && !jobsQuery.data?.length ? (
+          {!jobsQuery.isLoading && !jobsQuery.isError && jobsQuery.data?.total === 0 ? (
             <p className="text-sm text-slate">
               No jobs stored yet. Run a discovery pass above, or clear any active filters.
             </p>
           ) : null}
         </div>
+
+        {jobsQuery.data && jobsQuery.data.total_pages > 1 ? (
+          <div className="mt-6 flex items-center justify-center gap-3">
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => p - 1)}
+              className="rounded-2xl border border-slate/20 bg-white/80 px-4 py-2 text-sm text-slate disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ← Previous
+            </button>
+            <div className="flex gap-1">
+              {Array.from({ length: jobsQuery.data.total_pages }, (_, i) => i + 1)
+                .filter((p) => p === 1 || p === jobsQuery.data!.total_pages || Math.abs(p - page) <= 2)
+                .reduce<(number | "…")[]>((acc, p, idx, arr) => {
+                  if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("…");
+                  acc.push(p);
+                  return acc;
+                }, [])
+                .map((p, idx) =>
+                  p === "…" ? (
+                    <span key={`ellipsis-${idx}`} className="px-2 py-2 text-sm text-slate">…</span>
+                  ) : (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => setPage(p as number)}
+                      className={[
+                        "min-w-[2rem] rounded-xl px-3 py-2 text-sm",
+                        p === page
+                          ? "bg-ink text-mist"
+                          : "bg-white/80 text-slate hover:bg-white"
+                      ].join(" ")}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+            </div>
+            <button
+              type="button"
+              disabled={page >= jobsQuery.data.total_pages}
+              onClick={() => setPage((p) => p + 1)}
+              className="rounded-2xl border border-slate/20 bg-white/80 px-4 py-2 text-sm text-slate disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Next →
+            </button>
+          </div>
+        ) : null}
       </article>
     </section>
   );

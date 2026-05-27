@@ -4,7 +4,6 @@ from contextlib import suppress
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.db.session import AsyncSessionLocal
-from app.repositories.application_repository import ApplicationRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.resume_repository import ResumeRepository
 from app.repositories.search_preference_repository import SearchPreferenceRepository
@@ -43,7 +42,6 @@ class JobDiscoveryScheduler:
                         job_repository=JobRepository(session),
                         resume_repository=ResumeRepository(session),
                         search_preference_repository=SearchPreferenceRepository(session),
-                        application_repository=ApplicationRepository(session),
                     )
                     await pipeline.discover_from_preferences()
                     logger.info("scheduler.discovery_cycle_completed")

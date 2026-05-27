@@ -1,4 +1,5 @@
 import asyncio
+import random
 from abc import ABC, abstractmethod
 from pathlib import Path
 
@@ -58,7 +59,7 @@ class BaseATSHandler(ABC):
         raise NotImplementedError
 
     async def human_delay(self, minimum: float = 0.4, maximum: float = 1.2) -> None:
-        await asyncio.sleep(minimum if minimum == maximum else (minimum + maximum) / 2)
+        await asyncio.sleep(random.uniform(minimum, maximum))
 
     async def type_if_visible(self, selectors: list[str], value: str) -> bool:
         for selector in selectors:

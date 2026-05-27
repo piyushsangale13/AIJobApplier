@@ -18,7 +18,7 @@ export function ResumeUploadPage() {
   }
 
   return (
-    <section className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+    <section className="grid items-start gap-6 xl:grid-cols-[0.95fr_1.05fr]">
       <article className="glass-panel p-6">
         <p className="text-sm uppercase tracking-[0.3em] text-slate">Resume Upload</p>
         <h3 className="mt-3 font-display text-3xl">Parse your latest resume into structured data</h3>
@@ -46,8 +46,8 @@ export function ResumeUploadPage() {
       </article>
 
       <article className="glass-panel p-6">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate">Parsed Resumes</p>
-        <div className="mt-4 space-y-4">
+        <p className="text-sm uppercase tracking-[0.3em] text-slate ">Parsed Resumes</p>
+        <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1">
           {resumes?.map((resume) => (
             <div key={resume.id} className="rounded-3xl bg-white/70 p-5">
               <div className="flex items-center justify-between gap-4">

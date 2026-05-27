@@ -17,10 +17,15 @@ class GoogleDiscovery(BaseDiscoverySource):
     async def discover(self, request: JobDiscoveryRequest) -> list[DiscoveredJob]:
         settings = get_settings()
         jobs: list[DiscoveredJob] = []
+        seen_companies: set[str] = set()
         queries = self.build_queries(request)
 
         for query in queries:
+            if len(jobs) >= request.limit_per_source:
+                break
             for domain in settings.google_search_domains:
+                if len(jobs) >= request.limit_per_source:
+                    break
                 search_query = f'site:{domain} "{query}"'
                 url = f"https://www.google.com/search?q={self.encode_query(search_query)}&num={request.limit_per_source}"
                 try:
@@ -32,6 +37,8 @@ class GoogleDiscovery(BaseDiscoverySource):
 
                 soup = self.parse_html(response.text)
                 for anchor in soup.select("a[href^='/url?q=']"):
+                    if len(jobs) >= request.limit_per_source:
+                        break
                     href = anchor.get("href", "")
                     parsed = parse_qs(urlparse(href).query)
                     target = parsed.get("q", [None])[0]
@@ -41,6 +48,9 @@ class GoogleDiscovery(BaseDiscoverySource):
                     if not title:
                         continue
                     company = self._extract_company_from_url(target)
+                    if company in seen_companies:
+                        continue
+                    seen_companies.add(company)
                     source_id = hashlib.sha256(f"google|{company}|{title}|{target}".encode()).hexdigest()
                     jobs.append(
                         DiscoveredJob(
@@ -56,9 +66,7 @@ class GoogleDiscovery(BaseDiscoverySource):
                             metadata={"query": search_query, "domain": domain},
                         )
                     )
-                    if len(jobs) >= request.limit_per_source:
-                        break
-        return jobs[: request.limit_per_source * max(1, len(settings.google_search_domains))]
+        return jobs
 
     def _extract_company_from_url(self, url: str) -> str:
         host = urlparse(url).netloc.replace("www.", "")

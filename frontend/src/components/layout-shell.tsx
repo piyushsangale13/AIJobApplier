@@ -13,7 +13,7 @@ export function LayoutShell() {
   return (
     <div className="min-h-screen px-4 py-6 md:px-8">
       <div className="mx-auto grid max-w-7xl gap-6 lg:grid-cols-[280px_1fr]">
-        <aside className="glass-panel p-6">
+        <aside className="glass-panel sticky top-6 self-start p-6">
           <p className="text-sm uppercase tracking-[0.3em] text-slate">Personal Automation</p>
           <h1 className="mt-3 font-display text-4xl leading-tight text-ink">
             AI Job Applier
@@ -42,7 +42,7 @@ export function LayoutShell() {
         </aside>
 
         <main className="space-y-6">
-          <header className="glass-panel flex flex-col justify-between gap-4 p-6 md:flex-row md:items-end">
+          {/* <header className="glass-panel flex flex-col justify-between gap-4 p-6 md:flex-row md:items-end">
             <div>
               <p className="text-sm uppercase tracking-[0.3em] text-slate">Phase 1</p>
               <h2 className="mt-2 font-display text-3xl text-ink">
@@ -52,7 +52,7 @@ export function LayoutShell() {
             <div className="rounded-2xl bg-ember/10 px-4 py-3 text-sm text-ink">
               Non-SaaS, local-first architecture with FastAPI, Postgres, React, and OpenAI.
             </div>
-          </header>
+          </header> */}
           <Outlet />
         </main>
       </div>

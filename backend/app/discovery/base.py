@@ -26,6 +26,8 @@ class BaseDiscoverySource(ABC):
             for location in locations:
                 for experience_level in experience_levels:
                     parts = [keyword, experience_level, location]
+                    if request.remote_only:
+                        parts.append("remote")
                     query = " ".join(part.strip() for part in parts if part and part.strip())
                     if query:
                         queries.append(query)

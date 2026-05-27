@@ -9,12 +9,6 @@ from app.schemas.common import TimestampedSchema
 DiscoverySourceName = Literal["linkedin", "google", "wellfound"]
 
 
-class JobAnalysis(BaseModel):
-    missing_skills: list[str] = Field(default_factory=list)
-    reasoning: str | None = None
-    provider: str | None = None
-
-
 class JobRead(TimestampedSchema):
     source_id: str | None
     company: str
@@ -65,6 +59,14 @@ class JobFilterParams(BaseModel):
     ats_type: str | None = None
     source: str | None = None
     min_relevance_score: float | None = Field(default=None, ge=0, le=100)
+
+
+class JobsPage(BaseModel):
+    items: list[JobRead]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 class DiscoveredJob(BaseModel):

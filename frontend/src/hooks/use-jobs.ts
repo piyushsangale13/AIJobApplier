@@ -3,10 +3,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { discoverJobs, fetchJobs, rescoreJob, tailorResume } from "../api/jobs";
 import type { JobDiscoveryRequest, JobsQueryParams } from "../types/api";
 
-export function useJobs(filters: JobsQueryParams) {
+export function useJobs(filters: JobsQueryParams, page: number = 1, pageSize: number = 20) {
+  const params: JobsQueryParams = { ...filters, page, page_size: pageSize };
   return useQuery({
-    queryKey: ["jobs", filters],
-    queryFn: () => fetchJobs(filters)
+    queryKey: ["jobs", params],
+    queryFn: () => fetchJobs(params),
+    placeholderData: (prev) => prev
   });
 }
 

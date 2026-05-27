@@ -76,6 +76,16 @@ export interface JobsQueryParams {
   ats_type?: string;
   source?: string;
   min_relevance_score?: number;
+  page?: number;
+  page_size?: number;
+}
+
+export interface JobsPage {
+  items: JobRecord[];
+  total: number;
+  page: number;
+  page_size: number;
+  total_pages: number;
 }
 
 export interface JobDiscoveryRequest {

@@ -2,14 +2,14 @@ import { api } from "./client";
 import type {
   JobDiscoveryRequest,
   JobDiscoveryResponse,
-  JobRecord,
+  JobsPage,
   JobsQueryParams,
   JobScoreResponse,
   TailoredResumeResponse
 } from "../types/api";
 
-export async function fetchJobs(params: JobsQueryParams): Promise<JobRecord[]> {
-  const response = await api.get<JobRecord[]>("/jobs", { params });
+export async function fetchJobs(params: JobsQueryParams): Promise<JobsPage> {
+  const response = await api.get<JobsPage>("/jobs", { params });
   return response.data;
 }
 

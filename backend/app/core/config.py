@@ -28,7 +28,6 @@ class Settings(BaseSettings):
     request_timeout_seconds: float = 20.0
     discovery_scheduler_enabled: bool = True
     discovery_interval_minutes: int = 30
-    auto_queue_min_score: int = 75
     max_jobs_per_query: int = 20
 
     linkedin_search_locations: Annotated[list[str], NoDecode] = Field(

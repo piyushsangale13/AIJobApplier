@@ -6,7 +6,6 @@ import httpx
 from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.discovery import GoogleDiscovery, LinkedInDiscovery, WellfoundDiscovery
-from app.repositories.application_repository import ApplicationRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.resume_repository import ResumeRepository
 from app.repositories.search_preference_repository import SearchPreferenceRepository
@@ -24,13 +23,11 @@ class JobPipelineService:
         job_repository: JobRepository,
         resume_repository: ResumeRepository,
         search_preference_repository: SearchPreferenceRepository,
-        application_repository: ApplicationRepository,
         ai_service: AIService | None = None,
     ) -> None:
         self.job_repository = job_repository
         self.resume_repository = resume_repository
         self.search_preference_repository = search_preference_repository
-        self.application_repository = application_repository
         self.ai_service = ai_service or AIService()
         self.settings = get_settings()
 
@@ -88,34 +85,23 @@ class JobPipelineService:
     async def rescore_job(self, job_id: str, resume_id: str | None = None) -> JobScoreResponse:
         job = await self.job_repository.get_by_id(job_id)
         if not job:
-            raise ValueError("Job not found.")
-        resume = await self.resume_repository.get_by_id(resume_id) if resume_id else await self.resume_repository.get_latest()
+            raise LookupError("Job not found.")
+        resume = (
+            await self.resume_repository.get_by_id(resume_id)
+            if resume_id
+            else await self.resume_repository.get_latest()
+        )
         if not resume:
             raise ValueError("Resume not found. Upload a resume first.")
         score = await self.ai_service.score_job(resume.parsed_data, job.description)
-        saved = await self.job_repository.upsert_job(
-            {
-                "source_id": job.source_id,
-                "company": job.company,
-                "title": job.title,
-                "location": job.location,
-                "salary_text": job.salary_text,
-                "apply_url": job.apply_url,
-                "ats_type": job.ats_type,
-                "source": job.source,
-                "description": job.description,
-                "posted_at": job.posted_at,
-                "discovered_at": job.discovered_at,
-                "relevance_score": float(score.relevance_score),
-                "ai_analysis": {
-                    "missing_skills": score.missing_skills,
-                    "reasoning": score.reasoning,
-                    "source": job.source,
-                },
-            }
-        )
+        ai_analysis = {
+            "missing_skills": score.missing_skills,
+            "reasoning": score.reasoning,
+            "source": job.source,
+        }
+        saved = await self.job_repository.update_score(job_id, float(score.relevance_score), ai_analysis)
         return JobScoreResponse(
-            relevance_score=int(saved.relevance_score or score.relevance_score),
+            relevance_score=int(saved.relevance_score),
             missing_skills=list(saved.ai_analysis.get("missing_skills", [])),
             reasoning=str(saved.ai_analysis.get("reasoning", score.reasoning)),
         )

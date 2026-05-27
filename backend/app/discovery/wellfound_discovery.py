@@ -17,10 +17,15 @@ class WellfoundDiscovery(BaseDiscoverySource):
     async def discover(self, request: JobDiscoveryRequest) -> list[DiscoveredJob]:
         settings = get_settings()
         jobs: list[DiscoveredJob] = []
+        seen_companies: set[str] = set()
         queries = self.build_queries(request)
 
         for query in queries:
+            if len(jobs) >= request.limit_per_source:
+                break
             for location in settings.wellfound_search_locations:
+                if len(jobs) >= request.limit_per_source:
+                    break
                 url = (
                     "https://wellfound.com/jobs?"
                     f"query={self.encode_query(query)}&location={self.encode_query(location)}"
@@ -34,12 +39,17 @@ class WellfoundDiscovery(BaseDiscoverySource):
 
                 soup = self.parse_html(response.text)
                 for card in soup.select("div[data-test='StartupResult'], div[data-test='JobListItem']"):
+                    if len(jobs) >= request.limit_per_source:
+                        break
                     title_node = card.select_one("a[href*='/jobs/']")
                     company_node = card.select_one("[data-test='companyName'], a[href*='/company/']")
                     if not title_node:
                         continue
                     title = title_node.get_text(" ", strip=True)
                     company = company_node.get_text(" ", strip=True) if company_node else "Wellfound Company"
+                    if company in seen_companies:
+                        continue
+                    seen_companies.add(company)
                     apply_url = urljoin("https://wellfound.com", title_node.get("href", ""))
                     source_id = hashlib.sha256(f"wellfound|{company}|{title}|{apply_url}".encode()).hexdigest()
                     jobs.append(
@@ -56,6 +66,4 @@ class WellfoundDiscovery(BaseDiscoverySource):
                             metadata={"search_url": url},
                         )
                     )
-                    if len(jobs) >= request.limit_per_source:
-                        break
-        return jobs[: request.limit_per_source]
+        return jobs

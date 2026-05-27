@@ -17,8 +17,7 @@ class JobRepository:
         )
         return int(result.scalar_one())
 
-    async def list_jobs(self, filters: JobFilterParams) -> list[Job]:
-        query = select(Job).order_by(Job.relevance_score.desc().nullslast(), Job.created_at.desc())
+    def _apply_filters(self, query, filters: JobFilterParams):
         if filters.company:
             query = query.where(Job.company.ilike(f"%{filters.company}%"))
         if filters.location:
@@ -29,6 +28,21 @@ class JobRepository:
             query = query.where(Job.source == filters.source)
         if filters.min_relevance_score is not None:
             query = query.where(Job.relevance_score >= filters.min_relevance_score)
+        return query
+
+    async def count_jobs(self, filters: JobFilterParams) -> int:
+        query = self._apply_filters(select(func.count()).select_from(Job), filters)
+        result = await self.session.execute(query)
+        return int(result.scalar_one())
+
+    async def list_jobs(self, filters: JobFilterParams, page: int = 1, page_size: int = 20) -> list[Job]:
+        offset = (page - 1) * page_size
+        query = (
+            self._apply_filters(select(Job), filters)
+            .order_by(Job.created_at.desc())
+            .limit(page_size)
+            .offset(offset)
+        )
         result = await self.session.execute(query)
         return list(result.scalars().all())
 
@@ -43,6 +57,16 @@ class JobRepository:
     async def get_by_apply_url(self, apply_url: str) -> Job | None:
         result = await self.session.execute(select(Job).where(Job.apply_url == apply_url))
         return result.scalar_one_or_none()
+
+    async def update_score(self, job_id: str, score: float, ai_analysis: dict) -> Job:
+        job = await self.get_by_id(job_id)
+        if not job:
+            raise LookupError("Job not found.")
+        job.relevance_score = score
+        job.ai_analysis = ai_analysis
+        await self.session.commit()
+        await self.session.refresh(job)
+        return job
 
     async def upsert_job(self, payload: dict) -> Job:
         existing = None
