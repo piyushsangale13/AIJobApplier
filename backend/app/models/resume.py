@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String, Text
+from sqlalchemy import ForeignKey, SmallInteger, String, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -16,6 +16,8 @@ class Resume(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     raw_text: Mapped[str] = mapped_column(Text, nullable=False)
     parsed_data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ats_score: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    ats_analysis: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 
     user = relationship("User", back_populates="resumes")
     applications = relationship("Application", back_populates="resume")

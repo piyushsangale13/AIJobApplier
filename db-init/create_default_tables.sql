@@ -41,6 +41,8 @@ CREATE TABLE IF NOT EXISTS resumes (
     raw_text TEXT NOT NULL,
     parsed_data JSONB NOT NULL DEFAULT '{}'::jsonb,
     summary TEXT,
+    ats_score SMALLINT,
+    ats_analysis JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

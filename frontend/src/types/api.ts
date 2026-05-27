@@ -17,6 +17,18 @@ export interface ResumeParsedData {
   summary: string | null;
 }
 
+export interface ATSAnalysis {
+  overall_score: number;
+  contact_score: number;
+  skills_score: number;
+  experience_score: number;
+  education_score: number;
+  keywords_score: number;
+  formatting_score: number;
+  issues: string[];
+  recommendations: string[];
+}
+
 export interface ResumeRecord {
   id: string;
   created_at: string;
@@ -27,6 +39,8 @@ export interface ResumeRecord {
   raw_text: string;
   parsed_data: ResumeParsedData;
   summary: string | null;
+  ats_score: number | null;
+  ats_analysis: ATSAnalysis | null;
 }
 
 export interface ResumeUploadResponse {
