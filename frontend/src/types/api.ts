@@ -99,3 +99,9 @@ export interface JobScoreResponse {
   missing_skills: string[];
   reasoning: string;
 }
+
+export interface TailoredResumeResponse {
+  tailored_resume: string;
+  key_changes: string[];
+  matched_keywords: string[];
+}

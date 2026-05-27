@@ -12,7 +12,9 @@ from app.schemas.job import (
     JobFilterParams,
     JobRead,
     JobScoreResponse,
+    TailoredResumeResponse,
 )
+from app.services.ai_service import AIService
 from app.services.job_pipeline import JobPipelineService
 
 
@@ -87,3 +89,31 @@ async def rescore_job(
         return await service.rescore_job(job_id, resume_id=resume_id)
     except ValueError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+
+
+@router.post("/{job_id}/tailor-resume", response_model=TailoredResumeResponse)
+async def tailor_resume(
+    job_id: str,
+    resume_id: str | None = Query(default=None),
+    session: AsyncSession = Depends(get_session),
+) -> TailoredResumeResponse:
+    job_repo = JobRepository(session)
+    resume_repo = ResumeRepository(session)
+
+    job = await job_repo.get_by_id(job_id)
+    if not job:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
+
+    resume = await resume_repo.get_by_id(resume_id) if resume_id else await resume_repo.get_latest()
+    if not resume:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No resume found. Upload a resume first.",
+        )
+
+    result = await AIService().tailor_resume(resume.parsed_data, job.description)
+    return TailoredResumeResponse(
+        tailored_resume=result.tailored_resume,
+        key_changes=result.key_changes,
+        matched_keywords=result.matched_keywords,
+    )

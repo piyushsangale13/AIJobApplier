@@ -33,8 +33,9 @@ class ResumeService:
                 detail="Only PDF and DOCX resumes are supported.",
             )
 
-        saved_path = await self.file_storage.save_resume(upload)
-        raw_text = await self.document_parser.extract_text(saved_path)
+        content = await upload.read()
+        object_name = await self.file_storage.save_resume(content, upload.filename or "resume")
+        raw_text = await self.document_parser.extract_text(content, extension)
         if not raw_text.strip():
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -43,8 +44,8 @@ class ResumeService:
 
         parsed_data: ResumeParsedData = await self.ai_service.parse_resume(raw_text)
         resume = Resume(
-            filename=Path(saved_path).name,
-            file_path=str(saved_path),
+            filename=object_name,
+            file_path=object_name,
             file_type=extension.lstrip("."),
             raw_text=raw_text,
             parsed_data=parsed_data.model_dump(mode="json"),

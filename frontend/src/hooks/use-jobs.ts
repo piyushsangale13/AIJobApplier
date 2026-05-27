@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { discoverJobs, fetchJobs, rescoreJob } from "../api/jobs";
+import { discoverJobs, fetchJobs, rescoreJob, tailorResume } from "../api/jobs";
 import type { JobDiscoveryRequest, JobsQueryParams } from "../types/api";
 
 export function useJobs(filters: JobsQueryParams) {
@@ -31,5 +31,12 @@ export function useRescoreJob() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["jobs"] });
     }
+  });
+}
+
+export function useTailorResume() {
+  return useMutation({
+    mutationFn: ({ jobId, resumeId }: { jobId: string; resumeId?: string }) =>
+      tailorResume(jobId, resumeId)
   });
 }

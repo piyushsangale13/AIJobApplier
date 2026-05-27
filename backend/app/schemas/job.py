@@ -47,6 +47,12 @@ class JobScoreResponse(BaseModel):
     reasoning: str
 
 
+class TailoredResumeResponse(BaseModel):
+    tailored_resume: str
+    key_changes: list[str] = Field(default_factory=list)
+    matched_keywords: list[str] = Field(default_factory=list)
+
+
 class JobDiscoveryResponse(BaseModel):
     jobs: list[JobRead]
     source_counts: dict[str, int]

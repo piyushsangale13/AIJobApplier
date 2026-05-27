@@ -1,18 +1,16 @@
 import { useState } from "react";
 
 import { useResumes } from "../hooks/use-resumes";
-import { useDiscoverJobs, useJobs, useRescoreJob } from "../hooks/use-jobs";
+import { useDiscoverJobs, useJobs, useRescoreJob, useTailorResume } from "../hooks/use-jobs";
+import type { TailoredResumeResponse } from "../types/api";
 
 const discoverySourceOptions = ["linkedin", "google", "wellfound"] as const;
 
 export function JobsFeedPage() {
-  const [company, setCompany] = useState("");
-  const [location, setLocation] = useState("");
-  const [atsType, setAtsType] = useState("");
-  const [source, setSource] = useState("");
-  const [minScore, setMinScore] = useState("");
+  // Discover form state
   const [keywords, setKeywords] = useState("python, fastapi, react");
   const [experienceLevels, setExperienceLevels] = useState("SDE1, backend engineer");
+  const [discoverLocation, setDiscoverLocation] = useState("");
   const [resumeId, setResumeId] = useState("");
   const [remoteOnly, setRemoteOnly] = useState(true);
   const [selectedSources, setSelectedSources] = useState<string[]>([
@@ -21,16 +19,30 @@ export function JobsFeedPage() {
     "wellfound"
   ]);
 
+  // Filter form state (separate from discover)
+  const [filterCompany, setFilterCompany] = useState("");
+  const [filterLocation, setFilterLocation] = useState("");
+  const [filterAtsType, setFilterAtsType] = useState("");
+  const [filterSource, setFilterSource] = useState("");
+  const [filterMinScore, setFilterMinScore] = useState("");
+
+  // Per-job action state
+  const [scoringJobId, setScoringJobId] = useState<string | null>(null);
+  const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
+  const [tailorResults, setTailorResults] = useState<Record<string, TailoredResumeResponse>>({});
+  const [expandedTailorJobId, setExpandedTailorJobId] = useState<string | null>(null);
+
   const { data: resumes } = useResumes();
   const jobsQuery = useJobs({
-    company: company || undefined,
-    location: location || undefined,
-    ats_type: atsType || undefined,
-    source: source || undefined,
-    min_relevance_score: minScore ? Number(minScore) : undefined
+    company: filterCompany || undefined,
+    location: filterLocation || undefined,
+    ats_type: filterAtsType || undefined,
+    source: filterSource || undefined,
+    min_relevance_score: filterMinScore ? Number(filterMinScore) : undefined
   });
   const discoverMutation = useDiscoverJobs();
   const rescoreMutation = useRescoreJob();
+  const tailorMutation = useTailorResume();
 
   async function handleDiscover(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -39,7 +51,7 @@ export function JobsFeedPage() {
         .split(",")
         .map((item) => item.trim())
         .filter(Boolean),
-      locations: location ? [location] : ["India"],
+      locations: discoverLocation ? [discoverLocation] : ["India"],
       experience_levels: experienceLevels
         .split(",")
         .map((item) => item.trim())
@@ -49,6 +61,26 @@ export function JobsFeedPage() {
       limit_per_source: 10,
       remote_only: remoteOnly
     });
+  }
+
+  async function handleAtsScore(jobId: string) {
+    setScoringJobId(jobId);
+    try {
+      await rescoreMutation.mutateAsync({ jobId, resumeId: resumeId || undefined });
+    } finally {
+      setScoringJobId(null);
+    }
+  }
+
+  async function handleTailorResume(jobId: string) {
+    setTailoringJobId(jobId);
+    try {
+      const result = await tailorMutation.mutateAsync({ jobId, resumeId: resumeId || undefined });
+      setTailorResults((prev) => ({ ...prev, [jobId]: result }));
+      setExpandedTailorJobId(jobId);
+    } finally {
+      setTailoringJobId(null);
+    }
   }
 
   function toggleSource(selected: string) {
@@ -88,14 +120,14 @@ export function JobsFeedPage() {
               <label className="block">
                 <span className="text-sm text-slate">Preferred Location</span>
                 <input
-                  value={location}
-                  onChange={(event) => setLocation(event.target.value)}
+                  value={discoverLocation}
+                  onChange={(event) => setDiscoverLocation(event.target.value)}
                   className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
                   placeholder="Remote, Bengaluru, London"
                 />
               </label>
               <label className="block">
-                <span className="text-sm text-slate">Resume</span>
+                <span className="text-sm text-slate">Resume (for ATS Score &amp; Tailor)</span>
                 <select
                   value={resumeId}
                   onChange={(event) => setResumeId(event.target.value)}
@@ -140,8 +172,13 @@ export function JobsFeedPage() {
               disabled={discoverMutation.isPending || selectedSources.length === 0}
               className="rounded-2xl bg-ink px-5 py-3 text-sm font-medium text-mist disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {discoverMutation.isPending ? "Discovering..." : "Discover and Score Jobs"}
+              {discoverMutation.isPending ? "Discovering..." : "Discover Jobs"}
             </button>
+            {discoverMutation.isError ? (
+              <p className="text-sm text-red-600">
+                Discovery failed: {(discoverMutation.error as Error)?.message ?? "Unknown error"}
+              </p>
+            ) : null}
           </form>
         </article>
 
@@ -151,16 +188,16 @@ export function JobsFeedPage() {
             <label className="block">
               <span className="text-sm text-slate">Company</span>
               <input
-                value={company}
-                onChange={(event) => setCompany(event.target.value)}
+                value={filterCompany}
+                onChange={(event) => setFilterCompany(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               />
             </label>
             <label className="block">
               <span className="text-sm text-slate">Discovery Source</span>
               <select
-                value={source}
-                onChange={(event) => setSource(event.target.value)}
+                value={filterSource}
+                onChange={(event) => setFilterSource(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               >
                 <option value="">All</option>
@@ -172,16 +209,16 @@ export function JobsFeedPage() {
             <label className="block">
               <span className="text-sm text-slate">Location</span>
               <input
-                value={location}
-                onChange={(event) => setLocation(event.target.value)}
+                value={filterLocation}
+                onChange={(event) => setFilterLocation(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               />
             </label>
             <label className="block">
-              <span className="text-sm text-slate">Minimum Relevance Score</span>
+              <span className="text-sm text-slate">Minimum ATS Score</span>
               <input
-                value={minScore}
-                onChange={(event) => setMinScore(event.target.value)}
+                value={filterMinScore}
+                onChange={(event) => setFilterMinScore(event.target.value)}
                 type="number"
                 min="0"
                 max="100"
@@ -191,8 +228,8 @@ export function JobsFeedPage() {
             <label className="block">
               <span className="text-sm text-slate">ATS Type</span>
               <select
-                value={atsType}
-                onChange={(event) => setAtsType(event.target.value)}
+                value={filterAtsType}
+                onChange={(event) => setFilterAtsType(event.target.value)}
                 className="mt-2 w-full rounded-2xl border border-slate/20 bg-white/80 px-4 py-3 text-sm"
               >
                 <option value="">All</option>
@@ -207,21 +244,41 @@ export function JobsFeedPage() {
           {discoverMutation.data ? (
             <div className="mt-6 rounded-3xl bg-white/70 p-5 text-sm text-slate">
               <p className="font-semibold text-ink">Latest discovery run</p>
-              <p className="mt-2">Resume used: {discoverMutation.data.used_resume_id ?? "latest"}</p>
               <div className="mt-3 flex flex-wrap gap-2">
-                {Object.entries(discoverMutation.data.source_counts).map(([itemSource, count]) => (
-                  <span key={itemSource} className="rounded-full bg-spruce/10 px-3 py-1 text-xs text-spruce">
-                    {itemSource}: {count}
+                {Object.entries(discoverMutation.data.source_counts).map(([src, count]) => (
+                  <span
+                    key={src}
+                    className={[
+                      "rounded-full px-3 py-1 text-xs",
+                      count > 0 ? "bg-spruce/10 text-spruce" : "bg-slate/10 text-slate"
+                    ].join(" ")}
+                  >
+                    {src}: {count} jobs
                   </span>
                 ))}
               </div>
+              {Object.values(discoverMutation.data.source_counts).every((c) => c === 0) ? (
+                <p className="mt-3 text-xs text-amber-600">
+                  All sources returned 0 jobs — sources may be rate-limiting or blocking. Try again later.
+                </p>
+              ) : null}
             </div>
+          ) : null}
+          {jobsQuery.isError ? (
+            <p className="mt-4 text-sm text-red-600">
+              Failed to load jobs: {(jobsQuery.error as Error)?.message ?? "Unknown error"}
+            </p>
           ) : null}
         </article>
       </div>
 
       <article className="glass-panel p-6">
-        <p className="text-sm uppercase tracking-[0.3em] text-slate">Jobs Feed</p>
+        <div className="flex items-center justify-between">
+          <p className="text-sm uppercase tracking-[0.3em] text-slate">Jobs Feed</p>
+          {jobsQuery.data ? (
+            <span className="text-sm text-slate">{jobsQuery.data.length} jobs</span>
+          ) : null}
+        </div>
         <div className="mt-6 space-y-4">
           {jobsQuery.data?.map((job) => (
             <div key={job.id} className="rounded-3xl bg-white/75 p-5">
@@ -241,23 +298,29 @@ export function JobsFeedPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm uppercase tracking-[0.2em] text-slate">Relevance</p>
+                  <p className="text-sm uppercase tracking-[0.2em] text-slate">ATS Score</p>
                   <p className="font-display text-4xl text-ink">
-                    {job.relevance_score ? Math.round(job.relevance_score) : "--"}
+                    {job.relevance_score != null ? Math.round(job.relevance_score) : "--"}
                   </p>
                 </div>
               </div>
+
               <p className="mt-4 line-clamp-4 text-sm leading-7 text-slate">{job.description}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                {(job.ai_analysis.missing_skills ?? []).map((skill) => (
-                  <span key={skill} className="rounded-full bg-rose-100 px-3 py-1 text-xs text-rose-700">
-                    Missing: {skill}
-                  </span>
-                ))}
-              </div>
-              <p className="mt-4 text-sm text-slate">
-                {job.ai_analysis.reasoning ?? "No reasoning stored yet."}
-              </p>
+
+              {(job.ai_analysis.missing_skills ?? []).length > 0 ? (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {(job.ai_analysis.missing_skills ?? []).map((skill) => (
+                    <span key={skill} className="rounded-full bg-rose-100 px-3 py-1 text-xs text-rose-700">
+                      Missing: {skill}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+
+              {job.ai_analysis.reasoning ? (
+                <p className="mt-3 text-sm text-slate">{job.ai_analysis.reasoning}</p>
+              ) : null}
+
               <div className="mt-5 flex flex-wrap gap-3">
                 <a
                   href={job.apply_url}
@@ -269,18 +332,85 @@ export function JobsFeedPage() {
                 </a>
                 <button
                   type="button"
-                  onClick={() => rescoreMutation.mutate({ jobId: job.id, resumeId: resumeId || undefined })}
-                  className="rounded-2xl bg-white px-4 py-2 text-sm font-medium text-ink"
+                  disabled={scoringJobId === job.id}
+                  onClick={() => handleAtsScore(job.id)}
+                  className="rounded-2xl bg-spruce/10 px-4 py-2 text-sm font-medium text-spruce disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Rescore
+                  {scoringJobId === job.id ? "Scoring..." : "ATS Score"}
+                </button>
+                <button
+                  type="button"
+                  disabled={tailoringJobId === job.id}
+                  onClick={() => handleTailorResume(job.id)}
+                  className="rounded-2xl bg-ink/10 px-4 py-2 text-sm font-medium text-ink disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {tailoringJobId === job.id ? "Tailoring..." : "Tailor Resume"}
                 </button>
               </div>
+
+              {tailorResults[job.id] && expandedTailorJobId === job.id ? (
+                <div className="mt-5 rounded-2xl border border-slate/20 bg-white/80 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-ink">Tailored Resume</p>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(tailorResults[job.id].tailored_resume);
+                        }}
+                        className="text-xs text-slate underline"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedTailorJobId(null)}
+                        className="text-xs text-slate underline"
+                      >
+                        Collapse
+                      </button>
+                    </div>
+                  </div>
+
+                  {tailorResults[job.id].matched_keywords.length > 0 ? (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {tailorResults[job.id].matched_keywords.map((kw) => (
+                        <span key={kw} className="rounded-full bg-spruce/10 px-3 py-1 text-xs text-spruce">
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  {tailorResults[job.id].key_changes.length > 0 ? (
+                    <ul className="mt-3 space-y-1">
+                      {tailorResults[job.id].key_changes.map((change, index) => (
+                        <li key={index} className="text-xs text-slate before:mr-2 before:content-['→']">
+                          {change}
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  <pre className="mt-4 whitespace-pre-wrap text-xs leading-6 text-slate">
+                    {tailorResults[job.id].tailored_resume}
+                  </pre>
+                </div>
+              ) : tailorResults[job.id] && expandedTailorJobId !== job.id ? (
+                <button
+                  type="button"
+                  onClick={() => setExpandedTailorJobId(job.id)}
+                  className="mt-3 text-xs text-spruce underline"
+                >
+                  Show tailored resume
+                </button>
+              ) : null}
             </div>
           ))}
           {jobsQuery.isLoading ? <p className="text-sm text-slate">Loading jobs...</p> : null}
-          {!jobsQuery.data?.length && !jobsQuery.isLoading ? (
+          {!jobsQuery.isLoading && !jobsQuery.isError && !jobsQuery.data?.length ? (
             <p className="text-sm text-slate">
-              No jobs stored yet. Run a dynamic discovery pass or create enabled search preferences.
+              No jobs stored yet. Run a discovery pass above, or clear any active filters.
             </p>
           ) : null}
         </div>

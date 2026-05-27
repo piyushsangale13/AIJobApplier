@@ -4,7 +4,8 @@ import type {
   JobDiscoveryResponse,
   JobRecord,
   JobsQueryParams,
-  JobScoreResponse
+  JobScoreResponse,
+  TailoredResumeResponse
 } from "../types/api";
 
 export async function fetchJobs(params: JobsQueryParams): Promise<JobRecord[]> {
@@ -19,6 +20,13 @@ export async function discoverJobs(payload: JobDiscoveryRequest): Promise<JobDis
 
 export async function rescoreJob(jobId: string, resumeId?: string): Promise<JobScoreResponse> {
   const response = await api.post<JobScoreResponse>(`/jobs/${jobId}/score`, null, {
+    params: resumeId ? { resume_id: resumeId } : undefined
+  });
+  return response.data;
+}
+
+export async function tailorResume(jobId: string, resumeId?: string): Promise<TailoredResumeResponse> {
+  const response = await api.post<TailoredResumeResponse>(`/jobs/${jobId}/tailor-resume`, null, {
     params: resumeId ? { resume_id: resumeId } : undefined
   });
   return response.data;

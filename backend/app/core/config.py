@@ -41,8 +41,12 @@ class Settings(BaseSettings):
         default_factory=lambda: ["India", "Remote"]
     )
 
-    storage_path: Path = BASE_DIR / "storage"
-    resume_upload_path: Path = BASE_DIR / "storage" / "resumes"
+    minio_endpoint: str = "localhost:9000"
+    minio_access_key: str = "minioadmin"
+    minio_secret_key: str = "minioadmin"
+    minio_bucket: str = "resumes"
+    minio_secure: bool = False
+
     screenshot_path: Path = BASE_DIR / "storage" / "screenshots"
     log_level: str = "INFO"
 
@@ -62,7 +66,5 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
-    settings.storage_path.mkdir(parents=True, exist_ok=True)
-    settings.resume_upload_path.mkdir(parents=True, exist_ok=True)
     settings.screenshot_path.mkdir(parents=True, exist_ok=True)
     return settings

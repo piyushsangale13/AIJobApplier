@@ -11,7 +11,6 @@ from app.repositories.job_repository import JobRepository
 from app.repositories.resume_repository import ResumeRepository
 from app.repositories.search_preference_repository import SearchPreferenceRepository
 from app.schemas.job import DiscoveredJob, JobDiscoveryRequest, JobDiscoveryResponse, JobRead, JobScoreResponse
-from app.schemas.search_preference import SearchPreferenceRead
 from app.services.ai_service import AIService
 from app.utils.ats_detector import detect_ats_type
 
@@ -36,10 +35,6 @@ class JobPipelineService:
         self.settings = get_settings()
 
     async def discover_from_request(self, request: JobDiscoveryRequest) -> JobDiscoveryResponse:
-        resume = await self.resume_repository.get_by_id(request.resume_id) if request.resume_id else await self.resume_repository.get_latest()
-        if not resume:
-            raise ValueError("Upload a resume before discovering jobs.")
-
         source_names = request.sources or ["linkedin", "google", "wellfound"]
         async with httpx.AsyncClient(
             timeout=self.settings.request_timeout_seconds,
@@ -67,12 +62,10 @@ class JobPipelineService:
                 if str(discovered.apply_url) in seen_urls:
                     continue
                 seen_urls.add(str(discovered.apply_url))
-                saved = await self._store_scored_job(discovered, resume.parsed_data)
+                saved = await self._store_job(discovered)
                 persisted_jobs.append(saved)
-                await self._queue_application_if_eligible(saved, resume.id)
 
-        persisted_jobs.sort(key=lambda job: job.relevance_score or 0, reverse=True)
-        return JobDiscoveryResponse(jobs=persisted_jobs, source_counts=source_counts, used_resume_id=resume.id)
+        return JobDiscoveryResponse(jobs=persisted_jobs, source_counts=source_counts, used_resume_id=None)
 
     async def discover_from_preferences(self) -> list[JobDiscoveryResponse]:
         preferences = await self.search_preference_repository.list_all(enabled_only=True)
@@ -98,7 +91,7 @@ class JobPipelineService:
             raise ValueError("Job not found.")
         resume = await self.resume_repository.get_by_id(resume_id) if resume_id else await self.resume_repository.get_latest()
         if not resume:
-            raise ValueError("Resume not found.")
+            raise ValueError("Resume not found. Upload a resume first.")
         score = await self.ai_service.score_job(resume.parsed_data, job.description)
         saved = await self.job_repository.upsert_job(
             {
@@ -135,9 +128,8 @@ class JobPipelineService:
         }
         return [registry[name] for name in source_names if name in registry]
 
-    async def _store_scored_job(self, discovered: DiscoveredJob, resume_data: dict) -> JobRead:
+    async def _store_job(self, discovered: DiscoveredJob) -> JobRead:
         ats_type = detect_ats_type(str(discovered.apply_url))
-        score = await self.ai_service.score_job(resume_data, discovered.description)
         saved = await self.job_repository.upsert_job(
             {
                 "source_id": discovered.source_id,
@@ -151,28 +143,8 @@ class JobPipelineService:
                 "description": discovered.description,
                 "posted_at": discovered.posted_at,
                 "discovered_at": datetime.now(timezone.utc),
-                "relevance_score": float(score.relevance_score),
-                "ai_analysis": {
-                    "missing_skills": score.missing_skills,
-                    "reasoning": score.reasoning,
-                    "source": discovered.source,
-                    "metadata": discovered.metadata,
-                },
+                "relevance_score": None,
+                "ai_analysis": {"source": discovered.source, "metadata": discovered.metadata},
             }
         )
         return JobRead.model_validate(saved)
-
-    async def _queue_application_if_eligible(self, job: JobRead, resume_id: str) -> None:
-        if (job.relevance_score or 0) < self.settings.auto_queue_min_score:
-            return
-        await self.application_repository.create_or_update_for_job(
-            {
-                "job_id": job.id,
-                "resume_id": resume_id,
-                "company": job.company,
-                "role": job.title,
-                "status": "pending",
-                "notes": f"Queued automatically from {job.source} discovery for ATS {job.ats_type}.",
-                "screenshots": [],
-            }
-        )

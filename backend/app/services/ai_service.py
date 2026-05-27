@@ -27,6 +27,12 @@ class QuestionAnswerResult(BaseModel):
     confidence: str
 
 
+class TailoredResumeResult(BaseModel):
+    tailored_resume: str
+    key_changes: list[str] = Field(default_factory=list)
+    matched_keywords: list[str] = Field(default_factory=list)
+
+
 class AIService:
     def __init__(self) -> None:
         settings = get_settings()
@@ -119,6 +125,39 @@ class AIService:
                 {"role": "user", "content": f"Resume: {resume_data}\n\nQuestion: {question}"},
             ],
             text_format=QuestionAnswerResult,
+        )
+        return response.output_parsed
+
+    @retry(wait=wait_exponential(min=1, max=8), stop=stop_after_attempt(3), reraise=True)
+    async def tailor_resume(self, resume_data: dict, job_description: str) -> TailoredResumeResult:
+        if not self.client:
+            return TailoredResumeResult(
+                tailored_resume="OpenAI API key not configured. Resume tailoring is unavailable.",
+                key_changes=[],
+                matched_keywords=[],
+            )
+
+        response = await self.client.responses.parse(
+            model=self.model,
+            input=[
+                {
+                    "role": "system",
+                    "content": dedent("""
+                        Tailor the candidate's resume for the given job description.
+                        Rules:
+                        - Reorder and reword bullet points to highlight the most relevant experience first
+                        - Naturally weave in keywords from the job description where they genuinely apply
+                        - Do NOT invent experience, skills, or qualifications not present in the resume
+                        - Return the full tailored resume as clean markdown
+                        - List the specific changes made and the keywords matched
+                    """).strip(),
+                },
+                {
+                    "role": "user",
+                    "content": f"Resume data:\n{resume_data}\n\nJob description:\n{job_description}",
+                },
+            ],
+            text_format=TailoredResumeResult,
         )
         return response.output_parsed
 
