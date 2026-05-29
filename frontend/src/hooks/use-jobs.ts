@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { discoverJobs, fetchJobs, rescoreJob, tailorResume } from "../api/jobs";
+import { discoverJobs, fetchJobs, generateCoverLetter, rescoreJob, tailorResume } from "../api/jobs";
 import type { JobDiscoveryRequest, JobsQueryParams } from "../types/api";
 
 export function useJobs(filters: JobsQueryParams, page: number = 1, pageSize: number = 20) {
@@ -40,5 +40,12 @@ export function useTailorResume() {
   return useMutation({
     mutationFn: ({ jobId, resumeId }: { jobId: string; resumeId?: string }) =>
       tailorResume(jobId, resumeId)
+  });
+}
+
+export function useGenerateCoverLetter() {
+  return useMutation({
+    mutationFn: ({ jobId, resumeId }: { jobId: string; resumeId?: string }) =>
+      generateCoverLetter(jobId, resumeId)
   });
 }

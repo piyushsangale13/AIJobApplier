@@ -1,5 +1,6 @@
 import { api } from "./client";
 import type {
+  CoverLetterResponse,
   JobDiscoveryRequest,
   JobDiscoveryResponse,
   JobsPage,
@@ -27,6 +28,13 @@ export async function rescoreJob(jobId: string, resumeId?: string): Promise<JobS
 
 export async function tailorResume(jobId: string, resumeId?: string): Promise<TailoredResumeResponse> {
   const response = await api.post<TailoredResumeResponse>(`/jobs/${jobId}/tailor-resume`, null, {
+    params: resumeId ? { resume_id: resumeId } : undefined
+  });
+  return response.data;
+}
+
+export async function generateCoverLetter(jobId: string, resumeId?: string): Promise<CoverLetterResponse> {
+  const response = await api.post<CoverLetterResponse>(`/jobs/${jobId}/cover-letter`, null, {
     params: resumeId ? { resume_id: resumeId } : undefined
   });
   return response.data;

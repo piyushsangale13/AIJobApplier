@@ -1,8 +1,8 @@
 import { useState } from "react";
 
 import { useResumes } from "../hooks/use-resumes";
-import { useDiscoverJobs, useJobs, useRescoreJob, useTailorResume } from "../hooks/use-jobs";
-import type { TailoredResumeResponse } from "../types/api";
+import { useDiscoverJobs, useGenerateCoverLetter, useJobs, useRescoreJob, useTailorResume } from "../hooks/use-jobs";
+import type { CoverLetterResponse, TailoredResumeResponse } from "../types/api";
 
 const discoverySourceOptions = ["linkedin", "google", "wellfound"] as const;
 
@@ -39,8 +39,12 @@ export function JobsFeedPage() {
   const [tailoringJobId, setTailoringJobId] = useState<string | null>(null);
   const [tailorResults, setTailorResults] = useState<Record<string, TailoredResumeResponse>>({});
   const [expandedTailorJobId, setExpandedTailorJobId] = useState<string | null>(null);
+  const [coverLetterJobId, setCoverLetterJobId] = useState<string | null>(null);
+  const [coverLetterResults, setCoverLetterResults] = useState<Record<string, CoverLetterResponse>>({});
+  const [expandedCoverLetterJobId, setExpandedCoverLetterJobId] = useState<string | null>(null);
 
   const { data: resumes } = useResumes();
+  const coverLetterMutation = useGenerateCoverLetter();
   const jobsQuery = useJobs(
     {
       company: filterCompany || undefined,
@@ -92,6 +96,17 @@ export function JobsFeedPage() {
       setExpandedTailorJobId(jobId);
     } finally {
       setTailoringJobId(null);
+    }
+  }
+
+  async function handleGenerateCoverLetter(jobId: string) {
+    setCoverLetterJobId(jobId);
+    try {
+      const result = await coverLetterMutation.mutateAsync({ jobId, resumeId: resumeId || undefined });
+      setCoverLetterResults((prev) => ({ ...prev, [jobId]: result }));
+      setExpandedCoverLetterJobId(jobId);
+    } finally {
+      setCoverLetterJobId(null);
     }
   }
 
@@ -360,6 +375,14 @@ export function JobsFeedPage() {
                 >
                   {tailoringJobId === job.id ? "Tailoring..." : "Tailor Resume"}
                 </button>
+                <button
+                  type="button"
+                  disabled={coverLetterJobId === job.id}
+                  onClick={() => handleGenerateCoverLetter(job.id)}
+                  className="rounded-2xl bg-amber-50 px-4 py-2 text-sm font-medium text-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {coverLetterJobId === job.id ? "Generating..." : "Cover Letter"}
+                </button>
               </div>
 
               {tailorResults[job.id] && expandedTailorJobId === job.id ? (
@@ -417,6 +440,43 @@ export function JobsFeedPage() {
                   className="mt-3 text-xs text-spruce underline"
                 >
                   Show tailored resume
+                </button>
+              ) : null}
+
+              {coverLetterResults[job.id] && expandedCoverLetterJobId === job.id ? (
+                <div className="mt-5 rounded-2xl border border-amber-200 bg-amber-50/60 p-5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-semibold text-amber-800">Cover Letter</p>
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          void navigator.clipboard.writeText(coverLetterResults[job.id].cover_letter);
+                        }}
+                        className="text-xs text-amber-700 underline"
+                      >
+                        Copy
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedCoverLetterJobId(null)}
+                        className="text-xs text-amber-700 underline"
+                      >
+                        Collapse
+                      </button>
+                    </div>
+                  </div>
+                  <pre className="mt-4 whitespace-pre-wrap text-xs leading-6 text-slate">
+                    {coverLetterResults[job.id].cover_letter}
+                  </pre>
+                </div>
+              ) : coverLetterResults[job.id] && expandedCoverLetterJobId !== job.id ? (
+                <button
+                  type="button"
+                  onClick={() => setExpandedCoverLetterJobId(job.id)}
+                  className="mt-3 text-xs text-amber-700 underline"
+                >
+                  Show cover letter
                 </button>
               ) : null}
             </div>

@@ -129,3 +129,7 @@ export interface TailoredResumeResponse {
   key_changes: string[];
   matched_keywords: string[];
 }
+
+export interface CoverLetterResponse {
+  cover_letter: string;
+}

@@ -47,6 +47,10 @@ class TailoredResumeResponse(BaseModel):
     matched_keywords: list[str] = Field(default_factory=list)
 
 
+class CoverLetterResponse(BaseModel):
+    cover_letter: str
+
+
 class JobDiscoveryResponse(BaseModel):
     jobs: list[JobRead]
     source_counts: dict[str, int]

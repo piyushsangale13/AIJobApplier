@@ -201,12 +201,6 @@ Use `search_preferences` to store dynamic job search intent:
 
 Enabled preferences are processed by the scheduler every 15-30 minutes.
 
-## Seed Demo Data
-
-```bash
-cd backend
-python3 scripts/seed_demo.py
-```
 
 ## Automation Notes
 
