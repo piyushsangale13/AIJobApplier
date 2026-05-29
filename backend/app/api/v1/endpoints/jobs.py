@@ -1,4 +1,3 @@
-import asyncio
 import math
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -52,10 +51,8 @@ async def list_jobs(
         source=source,
         min_relevance_score=min_relevance_score,
     )
-    total, jobs = await asyncio.gather(
-        repository.count_jobs(filters),
-        repository.list_jobs(filters, page=page, page_size=page_size),
-    )
+    total = await repository.count_jobs(filters)
+    jobs = await repository.list_jobs(filters, page=page, page_size=page_size)
     return JobsPage(
         items=[JobRead.model_validate(job) for job in jobs],
         total=total,
