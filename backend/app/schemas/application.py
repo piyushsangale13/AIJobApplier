@@ -4,6 +4,7 @@ from app.schemas.common import TimestampedSchema
 
 
 class ApplicationRead(TimestampedSchema):
+    job_id: str | None = None
     company: str
     role: str
     status: str

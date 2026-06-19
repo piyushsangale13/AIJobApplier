@@ -18,8 +18,10 @@ class Job(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     salary_text: Mapped[str | None] = mapped_column(String(255), nullable=True)
     apply_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     ats_type: Mapped[str] = mapped_column(String(100), index=True, nullable=False)
+    source: Mapped[str] = mapped_column(String(100), index=True, nullable=False, default="unknown")
     description: Mapped[str] = mapped_column(Text, nullable=False)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    discovered_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     relevance_score: Mapped[float | None] = mapped_column(Float, nullable=True)
     ai_analysis: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
 

@@ -17,3 +17,11 @@ class ResumeRepository:
     async def list_all(self) -> list[Resume]:
         result = await self.session.execute(select(Resume).order_by(Resume.created_at.desc()))
         return list(result.scalars().all())
+
+    async def get_latest(self) -> Resume | None:
+        result = await self.session.execute(select(Resume).order_by(Resume.created_at.desc()).limit(1))
+        return result.scalar_one_or_none()
+
+    async def get_by_id(self, resume_id: str) -> Resume | None:
+        result = await self.session.execute(select(Resume).where(Resume.id == resume_id))
+        return result.scalar_one_or_none()

@@ -22,6 +22,8 @@ class ResumeRead(TimestampedSchema):
     raw_text: str
     parsed_data: dict
     summary: str | None = None
+    ats_score: int | None = None
+    ats_analysis: dict = {}
 
 
 class ResumeUploadResponse(BaseModel):
